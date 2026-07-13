@@ -1,16 +1,16 @@
 name: Daily Video Bot
 on:
   schedule:
-    - cron: '0 16 * * *' # هيشتغل لوحده كل يوم 6 مساءً بتوقيت مصر
-  workflow_dispatch: # ده زرار يخليك تشغله يدوي دلوقتي للتجربة
+    - cron: '0 16 * * *' 
+  workflow_dispatch:
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-python@v2
+      - uses: actions/checkout@v4 # حدثنا ده لـ v4
+      - uses: actions/setup-python@v5 # حدثنا ده لـ v5
         with:
-          python-version: '3.9'
+          python-version: '3.10'
       - run: pip install -r requirements.txt
       - name: Run Bot
         env:
