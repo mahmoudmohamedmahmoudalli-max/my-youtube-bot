@@ -4,47 +4,38 @@ import edge_tts
 import requests
 
 # جلب المفاتيح من الخزنة
-GEMINI_KEY = os.getenv("GEMINI_API_KEY")
+GROQ_KEY = os.getenv("GROQ_API_KEY")
 TG_TOKEN = os.getenv("TELEGRAM_TOKEN")
 TG_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
 async def run_bot():
-    print("--- بدء التشغيل وكشف الأعطال ---")
+    print("--- تشغيل الماكينة بنظام Groq ---")
     try:
-        # 1. طلب السكربت من جوجل Gemini
-        gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_KEY}"
-        payload = {
-            "contents": [{
-                "parts": [{"text": "اكتب حقيقة علمية مذهلة عن الفضاء في سطر واحد"}]
-            }]
+        # 1. طلب السكربت من Groq
+        url = "https://api.groq.com/openai/v1/chat/completions"
+        headers = {"Authorization": f"Bearer {GROQ_KEY}", "Content-Type": "application/json"}
+        data = {
+            "model": "mixtral-8x7b-32768",
+            "messages": [{"role": "user", "content": "اكتب حقيقة علمية مذهلة عن عجائب الطبيعة في سطر واحد فقط باللغة العربية المشوقة"}]
         }
-        
-        res = requests.post(gemini_url, json=payload)
-        data = res.json()
+        res = requests.post(url, headers=headers, json=data)
+        script = res.json()['choices'][0]['message']['content']
+        print(f"📜 السكربت: {script}")
 
-        # كاشف الأعطال: لو جوجل ردت بغلط
-        if 'error' in data:
-            error_text = f"❌ جوجل بتقول فيه غلط في المفتاح: {data['error']['message']}"
-            print(error_text)
-            requests.post(f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage", data={"chat_id": TG_CHAT_ID, "text": error_text})
-            return
-
-        # لو مفيش غلط، كمل عادي
-        script = data['candidates'][0]['content']['parts'][0]['text']
-        print(f"📜 النص: {script}")
-
-        # 2. تحويل النص لصوت
+        # 2. تحويل السكربت لصوت مصري
         communicate = edge_tts.Communicate(script, "ar-EG-ShakirNeural")
         await communicate.save("voice.mp3")
 
-        # 3. إرسال الرسالة لتلجرام
+        # 3. إرسال الرسالة النهائية لتلجرام
         tg_url = f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage"
-        requests.post(tg_url, data={"chat_id": TG_CHAT_ID, "text": f"✅ الماكينة نجحت!\n\n📜 النص: {script}"})
-        print("✅ تم الإرسال")
+        final_msg = f"✅ مبروك يا محمود! الماكينة نجحت!\n\n📜 النص: {script}\n\n🔊 تم تجهيز الصوت بنجاح."
+        requests.post(tg_url, data={"chat_id": TG_CHAT_ID, "text": final_msg})
+        print("✅ تم الإرسال بنجاح")
 
     except Exception as e:
-        print(f"❌ خطأ غير متوقع: {str(e)}")
-        requests.post(f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage", data={"chat_id": TG_CHAT_ID, "text": f"❌ عطل تقني: {str(e)}"})
+        error_msg = f"❌ حصلت مشكلة تقنية: {str(e)}"
+        print(error_msg)
+        requests.post(f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage", data={"chat_id": TG_CHAT_ID, "text": error_msg})
 
 if __name__ == "__main__":
     asyncio.run(run_bot())
