@@ -2,35 +2,41 @@ import os
 import asyncio
 import edge_tts
 import requests
-import google.generativeai as genai
 
-# جلب المفاتيح من الخزنة اللي إنت عملتها
+# جلب المفاتيح من الخزنة
 GEMINI_KEY = os.getenv("GEMINI_API_KEY")
 TG_TOKEN = os.getenv("TELEGRAM_TOKEN")
 TG_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
 async def run_bot():
+    print("---بدء التشغيل---")
     try:
-        # 1. توليد سكربت بـ Gemini
-        genai.configure(api_key=GEMINI_KEY)
-        model = genai.GenerativeModel('gemini-pro')
-        prompt = "اكتب لي حقيقة مذهلة وقصيرة جداً عن عجائب العالم القديم باللغة العربية المشوقة في سطر واحد فقط."
-        response = model.generate_content(prompt)
-        script = response.text
+        # 1. طلب السكربت من جوجل Gemini برابط مباشر
+        gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_KEY}"
+        payload = {
+            "contents": [{
+                "parts": [{"text": "اكتب حقيقة علمية مذهلة وسريعة عن الفضاء باللغة العربية في سطر واحد فقط"}]
+            }]
+        }
+        res = requests.post(gemini_url, json=payload)
+        script = res.json()['candidates'][0]['content']['parts'][0]['text']
+        print(f"📜 النص: {script}")
 
-        # 2. تحويل السكربت لصوت مصري (شاكر)
+        # 2. تحويل النص لصوت
         communicate = edge_tts.Communicate(script, "ar-EG-ShakirNeural")
         await communicate.save("voice.mp3")
+        print("🔊 تم تجهيز الصوت")
 
-        # 3. إرسال إشعار لتلجرام
-        message = f"🚀 الماكينة اشتغلت بنجاح!\n\n📜 النص: {script}\n\n📢 تم تجهيز الصوت بنجاح، الفيديو القادم في الطريق!"
-        requests.post(f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage", 
-                      data={"chat_id": TG_CHAT_ID, "text": message})
-        print("Success!")
+        # 3. إرسال الرسالة لتلجرام
+        tg_url = f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage"
+        requests.post(tg_url, data={"chat_id": TG_CHAT_ID, "text": f"✅ الماكينة اشتغلت!\n\n📜 النص: {script}"})
+        print("✅ تم الإرسال لتلجرام")
+
     except Exception as e:
-        # لو حصلت مشكلة هيبعتلك على تلجرام
+        error_msg = f"❌ حصلت مشكلة: {str(e)}"
+        print(error_msg)
         requests.post(f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage", 
-                      data={"chat_id": TG_CHAT_ID, "text": f"❌ Error: {str(e)}"})
+                      data={"chat_id": TG_CHAT_ID, "text": error_msg})
 
 if __name__ == "__main__":
     asyncio.run(run_bot())
