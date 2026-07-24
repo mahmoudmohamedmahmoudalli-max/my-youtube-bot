@@ -9,27 +9,22 @@ TG_TOKEN = os.getenv("TELEGRAM_TOKEN")
 TG_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
 async def run_bot():
-    print("--- كشف أعطال الماكينة ---")
+    print("--- تشغيل الماكينة بأحدث موديل ---")
     try:
-        # 1. طلب السكربت
+        # 1. طلب السكربت من Groq
         url = "https://api.groq.com/openai/v1/chat/completions"
         headers = {"Authorization": f"Bearer {GROQ_KEY}", "Content-Type": "application/json"}
         data = {
-            "model": "llama3-8b-8192", # غيرنا الموديل لواحد أخف وأسرع
+            "model": "llama-3.1-8b-instant", # ده الموديل الجديد الشغال
             "messages": [{"role": "user", "content": "اكتب حقيقة علمية مذهلة في سطر واحد فقط باللغة العربية"}]
         }
         
         res = requests.post(url, headers=headers, json=data)
         
-        # لو النتيجة مش 200 (يعني فيه غلط)
         if res.status_code != 200:
-            error_detail = f"❌ Groq Error {res.status_code}: {res.text}"
-            print(error_detail)
-            requests.post(f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage", 
-                          data={"chat_id": TG_CHAT_ID, "text": f"⚠️ تنبيه من الماكينة:\nالموقع رافض يشتغل والسبب:\n{res.text[:200]}"})
+            print(f"❌ Error: {res.text}")
             return
 
-        # لو النتيجة صح، كمل
         script = res.json()['choices'][0]['message']['content']
         print(f"📜 السكربت: {script}")
 
@@ -39,13 +34,11 @@ async def run_bot():
 
         # 3. إرسال لتلجرام
         tg_url = f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage"
-        requests.post(tg_url, data={"chat_id": TG_CHAT_ID, "text": f"✅ مبروك! اشتغلت أخيراً!\n\n📜 النص: {script}"})
-        print("✅ نجاح")
+        requests.post(tg_url, data={"chat_id": TG_CHAT_ID, "text": f"✅ أخيراً! اشتغلت يا محمود!\n\n📜 النص: {script}"})
+        print("✅ تم الإرسال")
 
     except Exception as e:
-        print(f"❌ خطأ غير متوقع: {str(e)}")
-        requests.post(f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage", 
-                      data={"chat_id": TG_CHAT_ID, "text": f"❌ عطل فني: {str(e)}"})
+        print(f"❌ خطأ: {str(e)}")
 
 if __name__ == "__main__":
     asyncio.run(run_bot())
