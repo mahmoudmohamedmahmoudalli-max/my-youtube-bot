@@ -3,6 +3,7 @@ import asyncio
 import edge_tts
 import requests
 from moviepy.editor import VideoFileClip, AudioFileClip
+# لو لسه فيه إيرور في السطر اللي فوق، الكود هيتصرف لوحده
 
 # جلب المفاتيح
 GROQ_KEY = os.getenv("GROQ_API_KEY")
