@@ -3,6 +3,7 @@ import asyncio
 import edge_tts
 import requests
 import subprocess
+import random
 
 # جلب المفاتيح
 GROQ_KEY = os.getenv("GROQ_API_KEY")
@@ -10,51 +11,51 @@ PEXELS_KEY = os.getenv("PEXELS_API_KEY")
 TG_TOKEN = os.getenv("TELEGRAM_TOKEN")
 TG_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
-async def run_bot():
-    print("--- بدء فحص الماكينة ---")
+async def run_tiktok_viral():
     try:
-        # 1. اختبار المفاتيح أولاً
-        if not GROQ_KEY or not PEXELS_KEY:
-            raise Exception("فيه مفتاح ناقص في GitHub Secrets! اتأكد إنك ضفت GROQ_API_KEY و PEXELS_API_KEY")
-
-        # 2. طلب السكربت
+        # 1. تأليف قصة طويلة (الجزء الأول) بأسلوب تيك توك
         url = "https://api.groq.com/openai/v1/chat/completions"
         headers = {"Authorization": f"Bearer {GROQ_KEY}"}
-        data = {"model": "llama-3.1-8b-instant", "messages": [{"role": "user", "content": "اكتب قصة رعب قصيرة جدا في سطر واحد"}]}
+        
+        # برومبت مخصص للقصص الطويلة والأجزاء
+        prompt = (
+            "اكتب الجزء الأول من قصة رعب حقيقية غامضة. "
+            "ابدأ بـ 'في سر غامض محدش عرف يفسره لحد النهاردة..'. "
+            "اجعل الأسلوب باللهجة المصرية المشوقة (زي فيديوهات تيك توك). "
+            "القصة يجب أن تكون طويلة (حوالي 150 كلمة). "
+            "أنهِ الفيديو بكلمة: (عشان تعرفوا اللي حصل في الجزء التاني، لايك وفولو)."
+        )
+        
+        data = {"model": "llama-3.1-8b-instant", "messages": [{"role": "user", "content": prompt}]}
         res = requests.post(url, headers=headers, json=data)
-        
-        if res.status_code != 200:
-            raise Exception(f"غلط في Groq: {res.text}")
-        
         script = res.json()['choices'][0]['message']['content']
 
-        # 3. تحويل الصوت
-        communicate = edge_tts.Communicate(script, "ar-EG-ShakirNeural")
+        # 2. تحويل الصوت (شاكر المصري)
+        communicate = edge_tts.Communicate(script, "ar-EG-ShakirNeural", rate="-2%")
         await communicate.save("audio.mp3")
 
-        # 4. فيديو بكسلز
-        pex_url = f"https://api.pexels.com/videos/search?query=dark&per_page=1"
+        # 3. تحميل خلفية "Satisfying" (زي اللي في تيك توك)
+        pex_queries = ["parkour", "satisfying", "abstract", "skating"]
+        query = random.choice(pex_queries)
+        pex_url = f"https://api.pexels.com/videos/search?query={query}&per_page=1&orientation=portrait"
         pex_res = requests.get(pex_url, headers={"Authorization": PEXELS_KEY}).json()
-        
-        if 'videos' not in pex_res:
-            raise Exception("مفتاح Pexels غلط أو منتهي الصلاحية")
-            
         vid_link = pex_res['videos'][0]['video_files'][0]['link']
         with open("bg.mp4", "wb") as f:
             f.write(requests.get(vid_link).content)
 
-        # 5. الدمج
-        subprocess.run("ffmpeg -i bg.mp4 -i audio.mp3 -c:v copy -c:a aac -shortest final.mp4 -y", shell=True)
+        # 4. المونتاج ودمج الصوت + كتابة "الجزء الأول" (Watermark)
+        # هنستخدم FFmpeg لإضافة نص "الجزء 1" في نص الفيديو
+        draw_text = "drawtext=text='Part 1 - الجزء الأول':fontcolor=white:fontsize=60:x=(w-text_w)/2:y=(h-text_h)/2+200:box=1:boxcolor=black@0.5:boxborderw=5"
+        cmd = f"ffmpeg -stream_loop -1 -i bg.mp4 -i audio.mp3 -vf \"{draw_text}\" -map 0:v:0 -map 1:a:0 -c:a aac -shortest final.mp4 -y"
+        subprocess.run(cmd, shell=True)
 
-        # 6. الإرسال
+        # 5. الإرسال لتلجرام
         tg_url = f"https://api.telegram.org/bot{TG_TOKEN}/sendVideo"
         with open("final.mp4", 'rb') as video:
-            requests.post(tg_url, files={'video': video}, data={'chat_id': TG_CHAT_ID, 'caption': f"✅ اشتغلت!\n{script}"})
+            requests.post(tg_url, files={'video': video}, data={'chat_id': TG_CHAT_ID, 'caption': f"🔥 فيديو قصة - الجزء 1\n\n#قصص #رعب #fyp"})
 
     except Exception as e:
-        error_msg = f"❌ العطل هو: {str(e)}"
-        print(error_msg)
-        requests.post(f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage", data={"chat_id": TG_CHAT_ID, "text": error_msg})
+        requests.post(f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage", data={"chat_id": TG_CHAT_ID, "text": f"❌ عطل: {str(e)}"})
 
 if __name__ == "__main__":
-    asyncio.run(run_bot())
+    asyncio.run(run_tiktok_viral())
